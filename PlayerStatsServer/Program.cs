@@ -21,12 +21,6 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
-//var players = new List<Player>
-//{
-//    new Player { Id = 0, Name = "BoostedBlyat", Score = 12993.74F  },
-//    new Player { Id = 1, Name = "Rusik Robokop", Score = 733.2F  },
-//    new Player { Id = 2, Name = "Rando", Score = 8983.26F  },
-//};
 
 app.MapGet("/players", async (DataContext context) => await context.Players.ToListAsync());
 
