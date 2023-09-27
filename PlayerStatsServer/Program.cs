@@ -1,9 +1,14 @@
+using PlayerStatsServer;
+
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
+
+//Add db context
+builder.Services.AddDbContext<DataContext>();
 
 var app = builder.Build();
 
@@ -16,56 +21,46 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
-var players = new List<Player>
-{
-    new Player { Id = 0, Name = "BoostedBlyat", Score = 12993.74F  },
-    new Player { Id = 1, Name = "Rusik Robokop", Score = 733.2F  },
-    new Player { Id = 2, Name = "Rando", Score = 8983.26F  },
-};
 
-app.MapGet("/players", () =>
+app.MapGet("/players", async (DataContext context) => await context.Players.ToListAsync());
+
+app.MapGet("/players/{id}", async(DataContext context, int id) =>
+    await context.Players.FindAsync(id) is Player player ? 
+        Results.Ok(player) :
+        Results.NotFound("Sorry, player not found")
+);
+
+app.MapPost("/players", async (DataContext context, Player player) =>
 {
-    return Results.Ok(players);
+    context.Players.Add(player);
+    await context.SaveChangesAsync();
+    return Results.Ok(await context.Players.ToListAsync());
 });
 
-app.MapGet("/players/{id}", (int id) =>
+app.MapPut("/players", async (DataContext context, Player updatedPlayer, int id) =>
 {
-    var player = players.Find(p => p.Id == id);
-
-    if(player is null)
-        return Results.NotFound("Sorry no player found with that id");
-
-    return Results.Ok(player);
-});
-
-app.MapPost("/players", (Player p) =>
-{
-    players.Add(p);
-    return Results.Ok(players);
-});
-
-app.MapPut("/players/{id}", (Player editedPlayer, int id) =>
-{
-    var player = players.Find(p => p.Id == id);
+    var player = await context.Players.FindAsync(id);
     if (player is null)
-        return Results.NotFound("No players to edit with that id");
+        return Results.NotFound("Sorry, player doesn't exist to edit");
 
-    player.Score = editedPlayer.Score;
-    player.Name = editedPlayer.Name;
+    player.Name = updatedPlayer.Name;
+    player.Score = updatedPlayer.Score;
+    await context.SaveChangesAsync();
 
-    return Results.Ok(players);
+    return Results.Ok(await context.Players.ToListAsync());
 });
 
-app.MapDelete("/players/{id}", (int id) =>
+app.MapDelete("/players", async (DataContext context, int id) =>
 {
-    var player = players.Find(p =>p.Id == id);
+    var player = context.Players.Find(id);
     if (player is null)
-        return Results.NotFound("No player to delete with that id");
+        return Results.NotFound("Sorry no player found to remove");
 
-    players.Remove(player);
-
-    return Results.Ok(players);
+    context.Players.Remove(player);
+    await context.SaveChangesAsync();
+    return Results.Ok(await context.Players.ToListAsync());
 });
+
 
 app.Run();
 
